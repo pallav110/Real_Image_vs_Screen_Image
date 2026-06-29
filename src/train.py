@@ -32,9 +32,10 @@ from sklearn.metrics import (
 from sklearn.model_selection import StratifiedKFold, cross_val_score, train_test_split
 from sklearn.preprocessing import StandardScaler
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root on path
 from features import FEATURE_NAMES, extract_features
 
-ROOT = Path(__file__).parent
+ROOT = Path(__file__).resolve().parent.parent  # repo root (this file lives in src/)
 DATA_DIR = ROOT / "dataset"
 CACHE = ROOT / "features_cache.npz"
 MODEL_PATH = ROOT / "model.joblib"

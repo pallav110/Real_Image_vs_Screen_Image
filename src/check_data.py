@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-DATA_DIR = Path(__file__).parent / "dataset"
+DATA_DIR = Path(__file__).resolve().parent.parent / "dataset"  # repo root (file in src/)
 CLASSES = {"real": 0, "screen": 1}
 EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".heic", ".tif", ".tiff"}
 

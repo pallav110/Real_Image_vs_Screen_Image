@@ -19,9 +19,10 @@ from pathlib import Path
 
 import numpy as np
 
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))  # repo root on path
 import predict as P
 
-ROOT = Path(__file__).parent
+ROOT = Path(__file__).resolve().parent.parent  # repo root (this file lives in src/)
 DATA_DIR = ROOT / "dataset"
 EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".tif", ".tiff"}
 
