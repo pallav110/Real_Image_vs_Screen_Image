@@ -1,0 +1,4 @@
+# Extra dependencies for regenerating the README figures (src/make_figures.py).
+# Not needed to run predict.py or train.py.
+-r requirements.txt
+matplotlib>=3.7

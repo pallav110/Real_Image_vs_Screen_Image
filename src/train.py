@@ -102,7 +102,7 @@ def build_dataset(refresh=False):
             paths.append(str(p))
     X, y = np.asarray(X, dtype=np.float32), np.asarray(y, dtype=np.int64)
     np.savez(CACHE, X=X, y=y, names=np.array(FEATURE_NAMES), paths=np.array(paths))
-    print(f"Extracted + cached: {X.shape[0]} images, {X.shape[1]} features")
+    print(f"Extracted + cached: {X.shape[0]} images, {X.shape[1]} features") # type: ignore
     return X, y, [Path(s) for s in paths]
 
 

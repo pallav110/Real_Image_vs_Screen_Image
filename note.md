@@ -27,9 +27,10 @@ with a tiny **logistic regression** (0.8 KB on disk):
   locally-strong moiré; mean cuts single-window noise).
 - **Data quality.** A source-stratified error analysis showed 14 of my "screen"
   images had been sent via **WhatsApp**, which recompresses + downscales and
-  *destroys* the recapture fingerprints — they classified at 14% vs 94% for native
-  screen captures (WhatsApp *real* images were unaffected at 98%, confirming the
-  cause). They are corrupted labels for a fingerprint method and do not match the
+  *destroys* the recapture fingerprints — they classified at only ~14–21%
+  (classifier-dependent) vs ~94% for native screen captures, while WhatsApp *real*
+  images were unaffected, confirming the cause. They are corrupted labels for a
+  fingerprint method and do not match the
   grader's direct-camera scenario, so I exclude WhatsApp-transmitted screens.
 
 ## Accuracy (5-fold stratified cross-validation, balanced accuracy)
