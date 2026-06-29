@@ -33,9 +33,17 @@ def _load_bundle():
     if _BUNDLE is None:
         if not MODEL_PATH.exists():
             raise FileNotFoundError(
-                f"{MODEL_PATH.name} not found -- run `python train.py` first."
+                f"{MODEL_PATH.name} not found -- run `python src/train.py` first."
             )
-        _BUNDLE = joblib.load(MODEL_PATH)
+        try:
+            _BUNDLE = joblib.load(MODEL_PATH)
+        except Exception as e:
+            # Most likely a scikit-learn version mismatch reading the pickle.
+            raise RuntimeError(
+                f"Could not load {MODEL_PATH.name} ({e}). Install the tested "
+                f"versions with `pip install -r requirements.txt`, or regenerate "
+                f"it locally with `python src/train.py`."
+            ) from e
     return _BUNDLE
 
 
