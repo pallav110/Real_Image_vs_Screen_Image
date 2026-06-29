@@ -70,3 +70,8 @@ linearly separable, so the simplest model won.
 `train.py` (trains + compares 3 models, saves winner) · `benchmark.py` (latency/cost)
 · `check_data.py` (dataset/confound checks) · `model.joblib` (shipped) ·
 `requirements.txt`.
+
+**Bonus — camera demo:** `python demo.py`, open <http://localhost:8000>, allow the
+camera or upload a photo. It's a standard-library web server (no Flask) that calls
+the same `predict()`, so there's one trusted inference path. Files: `demo.py`,
+`demo.html`.
