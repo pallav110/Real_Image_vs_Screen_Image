@@ -4,8 +4,8 @@ Run this WHILE collecting photos to catch problems early:
     python check_data.py
 
 It looks for images in:
-    data/real/    (label 0 = real photo)
-    data/screen/  (label 1 = photo of a screen / recapture)
+    dataset/real/    (label 0 = real photo)
+    dataset/screen/  (label 1 = photo of a screen / recapture)
 
 What it reports per class:
   - image count (and class balance)
@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-DATA_DIR = Path(__file__).parent / "data"
+DATA_DIR = Path(__file__).parent / "dataset"
 CLASSES = {"real": 0, "screen": 1}
 EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp", ".heic", ".tif", ".tiff"}
 
