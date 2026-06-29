@@ -52,17 +52,41 @@ def list_images(folder: Path):
     return sorted(p for p in folder.iterdir() if p.suffix.lower() in EXTS)
 
 
+def dataset_paths():
+    """All (path, label) in the canonical order used to build the cache."""
+    return [(p, label) for cls, label in CLASSES.items()
+            for p in list_images(DATA_DIR / cls)]
+
+
+def is_whatsapp(path: Path) -> bool:
+    """WhatsApp filenames look like IMG-YYYYMMDD-WA####.jpg.
+
+    WhatsApp transmission recompresses AND downscales images, which destroys the
+    high-frequency recapture fingerprints (moire, sub-pixel chroma) this detector
+    relies on. We therefore drop WhatsApp-transmitted SCREEN images: empirically
+    they classify at ~14% (vs ~94% for native screens) because they no longer
+    carry any screen evidence -- they are corrupted labels for a fingerprint
+    method, and they do not match the grader's direct-camera capture scenario.
+    Real images are unaffected (no fingerprint to destroy), so we keep them.
+    """
+    return "-WA" in path.name
+
+
 def build_dataset(refresh=False):
-    """Return X (n, d), y (n,). Cache features to avoid recomputing FFTs."""
+    """Return X (n, d), y (n,), paths (list). Cache features to avoid recompute."""
     if CACHE.exists() and not refresh:
         data = np.load(CACHE)  # plain numeric/string arrays, no pickle needed
-        # Invalidate cache if the feature set changed.
         if list(data["names"]) == FEATURE_NAMES:
-            print(f"Loaded cached features: {data['X'].shape[0]} images")
-            return data["X"], data["y"]
-        print("Feature set changed -> re-extracting.")
+            if "paths" in data.files:
+                paths = [Path(s) for s in data["paths"]]
+            else:  # older cache without paths -> reconstruct from disk order
+                paths = [p for p, _ in dataset_paths()]
+            if len(paths) == data["X"].shape[0]:
+                print(f"Loaded cached features: {data['X'].shape[0]} images")
+                return data["X"], data["y"], paths
+        print("Cache stale -> re-extracting.")
 
-    X, y = [], []
+    X, y, paths = [], [], []
     for cls, label in CLASSES.items():
         imgs = list_images(DATA_DIR / cls)
         print(f"Extracting {cls}: {len(imgs)} images ...")
@@ -74,10 +98,11 @@ def build_dataset(refresh=False):
                 continue
             X.append(vec)
             y.append(label)
+            paths.append(str(p))
     X, y = np.asarray(X, dtype=np.float32), np.asarray(y, dtype=np.int64)
-    np.savez(CACHE, X=X, y=y, names=np.array(FEATURE_NAMES))
+    np.savez(CACHE, X=X, y=y, names=np.array(FEATURE_NAMES), paths=np.array(paths))
     print(f"Extracted + cached: {X.shape[0]} images, {X.shape[1]} features")
-    return X, y
+    return X, y, [Path(s) for s in paths]
 
 
 # --------------------------------------------------------------------------- #
@@ -143,9 +168,18 @@ def evaluate(name, model, Xtr, ytr, Xte, yte, Xall, yall):
 def main():
     refresh = "--refresh" in sys.argv
     t0 = time.time()
-    X, y = build_dataset(refresh=refresh)
+    X, y, paths = build_dataset(refresh=refresh)
     print(f"(feature stage: {time.time() - t0:.1f}s)")
-    print(f"class counts: real={int((y == 0).sum())}  screen={int((y == 1).sum())}")
+
+    # Drop WhatsApp-transmitted SCREEN images (see is_whatsapp): their recapture
+    # fingerprints were destroyed in transit, so they are corrupted labels.
+    excluded = np.array([is_whatsapp(p) and lab == 1 for p, lab in zip(paths, y)])
+    if excluded.any():
+        print(f"excluding {int(excluded.sum())} WhatsApp screen images "
+              f"(fingerprints destroyed by WhatsApp re-encoding)")
+        X, y = X[~excluded], y[~excluded]
+    print(f"training set: real={int((y == 0).sum())}  screen={int((y == 1).sum())}  "
+          f"(n={len(y)})")
 
     feature_separation(X, y)
 

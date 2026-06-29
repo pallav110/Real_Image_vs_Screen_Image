@@ -1,10 +1,16 @@
-.venv
 .venv/
-dataset/real/
-dataset/screen/
-plan.md
 __pycache__/
 
-model.joblib
+# Large/private: your own photos (not part of the submission)
+dataset/real/
+dataset/screen/
+
+# Regenerable feature cache
 features.npz
 features_cache.npz
+
+# Personal interview-prep notes
+plan.md
+
+# NOTE: model.joblib IS committed -- predict.py needs it and the grader
+# cannot retrain (the dataset is not shipped).

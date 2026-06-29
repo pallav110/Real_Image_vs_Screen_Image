@@ -16,8 +16,10 @@ Fingerprint families (all interpretable):
      screen structure beating against the sensor grid.
   B. HIGH-FREQUENCY RESIDUAL        -- magnitude & non-Gaussianity of fine noise.
   C. JPEG DOUBLE-COMPRESSION        -- stronger 8x8 block-boundary jumps.
-  D. CHROMA HIGH-FREQUENCY          -- RGB sub-pixel recapture leaks color detail
-     into the color-opponent channels that natural luminance edges do not.
+
+(Color-opponent "chroma" features were prototyped and dropped: they tripled the
+FFT cost while slightly *lowering* cross-validated accuracy -- the luma spectrum
+already captures the recapture signal. A good reminder that more features != better.)
 
 Light deps (numpy + Pillow only).
 
@@ -79,31 +81,34 @@ def _highpass(plane, sigma=1.0):
     return plane - blurred
 
 
-def _residual_spectrum(plane, sigma=1.0):
-    """Magnitude spectrum of the high-pass residual, plus its radius grid."""
-    hp = _highpass(plane, sigma)
-    win = np.hanning(hp.shape[0])[:, None] * np.hanning(hp.shape[1])[None, :]
-    F = np.abs(np.fft.fftshift(np.fft.fft2(hp * win)))
-    cy, cx = F.shape[0] // 2, F.shape[1] // 2
-    y, x = np.indices(F.shape)
-    r = np.sqrt((y - cy) ** 2 + (x - cx) ** 2)
-    return F, r, (cy, cx), (y, x)
+# Geometry (window, radius mask, angle bins) depends only on crop shape, so we
+# build it ONCE per shape and reuse across all crops/images -- this is identical
+# math, just not recomputed 5x per image. Big speedup, zero change to values.
+_GEOM = {}
 
 
-def _peak_ratio(plane):
-    """Single scalar: how far the strongest non-DC peak sticks out (chroma use)."""
-    F, r, (cy, _), _ = _residual_spectrum(plane, sigma=1.0)
-    spec = F[r > 0.10 * cy]
-    return float(spec.max() / (spec.mean() + 1e-6))
+def _geom(shape):
+    g = _GEOM.get(shape)
+    if g is None:
+        cy, cx = shape[0] // 2, shape[1] // 2
+        y, x = np.indices(shape)
+        r = np.sqrt((y - cy) ** 2 + (x - cx) ** 2)
+        win = np.hanning(shape[0])[:, None] * np.hanning(shape[1])[None, :]
+        outer = r > 0.10 * cy
+        ang_outer = (np.arctan2(y - cy, x - cx)[outer] / np.pi * 6).astype(int) % 6
+        g = {"win": win, "outer": outer, "ang_outer": ang_outer}
+        _GEOM[shape] = g
+    return g
 
 
 # --------------------------------------------------------------------------- #
 # A. Luma residual spectrum / moire (the heart)
 # --------------------------------------------------------------------------- #
 def spectrum_features(gray):
-    F, r, (cy, cx), (y, x) = _residual_spectrum(gray, sigma=1.0)
-    outer = r > 0.10 * cy
-    spec = F[outer]
+    g = _geom(gray.shape)
+    hp = _highpass(gray, sigma=1.0)
+    F = np.abs(np.fft.fftshift(np.fft.fft2(hp * g["win"])))
+    spec = F[g["outer"]]
     mean = spec.mean() + 1e-6
 
     peak_ratio = float(spec.max() / mean)                  # peakiness
@@ -113,7 +118,7 @@ def spectrum_features(gray):
     high_frac = float((spec ** 2).sum() / ((F ** 2).sum() + 1e-6))
 
     # Directional anisotropy: moire favors orientations -> uneven angular energy.
-    ang = (np.arctan2(y - cy, x - cx)[outer] / np.pi * 6).astype(int) % 6
+    ang = g["ang_outer"]
     bins = np.array([spec[ang == k].mean() for k in range(6)])
     anisotropy = float(bins.std() / (bins.mean() + 1e-6))
 
@@ -153,26 +158,6 @@ def blockiness_features(gray):
 
 
 # --------------------------------------------------------------------------- #
-# D. Chroma high-frequency (color-opponent channels)
-# --------------------------------------------------------------------------- #
-def chroma_features(rgb):
-    """High-frequency energy in color-opponent channels.
-
-    Natural fine detail is almost pure luminance (R,G,B move together at edges).
-    Re-photographing a screen's RGB sub-pixels injects color detail, so the
-    color-opponent residuals carry abnormal high-frequency energy and peaks.
-    """
-    R, G, B = rgb[..., 0], rgb[..., 1], rgb[..., 2]
-    rg = R - G                       # red-green opponent
-    by = B - 0.5 * (R + G)           # blue-yellow opponent
-
-    luma_res = _highpass(0.299 * R + 0.587 * G + 0.114 * B, sigma=1.0).std() + 1e-6
-    chroma_hf = float((_highpass(rg, 1.0).std() + _highpass(by, 1.0).std()) / luma_res)
-    chroma_peak = float(max(_peak_ratio(rg), _peak_ratio(by)))
-    return ([chroma_hf, chroma_peak], ["chroma_hf", "chroma_peak"])
-
-
-# --------------------------------------------------------------------------- #
 # Public assembly
 # --------------------------------------------------------------------------- #
 _BASE_NAMES = (
@@ -180,7 +165,6 @@ _BASE_NAMES = (
      "spec_anisotropy"]
     + ["hf_std", "hf_kurtosis"]
     + ["jpeg_block_ratio"]
-    + ["chroma_hf", "chroma_peak"]
 )
 
 
@@ -191,7 +175,6 @@ def _features_one_crop(rgb):
         spectrum_features(gray),
         residual_features(gray),
         blockiness_features(gray),
-        chroma_features(rgb),
     ):
         values.extend(vals)
     return np.asarray(values, dtype=np.float32)
