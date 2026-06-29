@@ -57,4 +57,5 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("usage: python predict.py image.jpg", file=sys.stderr)
         sys.exit(1)
-    print(predict(sys.argv[1]))
+    # Print a clean number (e.g. 0.93). predict() itself returns full precision.
+    print(f"{predict(sys.argv[1]):.4f}")

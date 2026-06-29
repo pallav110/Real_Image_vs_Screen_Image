@@ -64,6 +64,32 @@ linearly separable, so the simplest model won.
 - **Threshold tuning:** currently 0.5; I'd set it from the ROC to match the real
   cost trade-off between missed fraud and false alarms.
 
+## Scaling, adversaries & the cut-off ("more experienced" questions)
+
+**Staying accurate as cheaters adapt.** The risk is that cheaters defeat one cue
+(e.g. use a high-DPI screen far away to kill moiré). Defences: (a) keep *multiple
+independent* physics cues — spectrum, blockiness, noise, plus glare/specular and
+color-gamut cues I'd add — so beating one doesn't beat all; (b) a human-review
+queue on borderline scores that continuously harvests new cheats for
+hard-negative retraining (active learning); (c) monitor the live score
+distribution for drift; (d) longer term, a **liveness** signal — a 2–3 frame
+burst shows parallax/refresh-flicker that a flat screen cannot fake, far harder
+to spoof than a single frame.
+
+**Tiny & fast on a phone.** The classifier is already 0.8 KB (a linear model — no
+quantization needed); the cost is the FFT. On-device I'd use 1–2 small crops
+(256–384 px) and the platform-native FFT (Accelerate/vDSP on iOS, NDK/NNAPI on
+Android), targeting <30 ms per capture. It runs entirely on-device → free and
+private, no image leaves the phone.
+
+**Choosing the fraud cut-off.** Not 0.5 by default — it's a business cost
+trade-off between false positives (blocking honest users) and false negatives
+(letting fraud through). I'd calibrate the score to a true probability
+(Platt/isotonic) and set the threshold from the validation ROC to a tolerable
+false-positive rate (e.g. ≤1% of honest users flagged), or use **two** cut-offs:
+auto-allow below, auto-block above, human-review the band between — and re-tune as
+the fraud base rate and adversaries shift.
+
 ## Files
 
 `predict.py` (interface) · `features.py` (shared feature extraction) ·
