@@ -2,3 +2,9 @@
 .venv/
 dataset/real/
 dataset/screen/
+plan.md
+__pycache__/
+
+model.joblib
+features.npz
+features_cache.npz
