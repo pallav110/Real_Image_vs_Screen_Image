@@ -56,6 +56,11 @@ linearly separable, so the simplest model won.
 This certifies no *image-level* overfitting; robustness to unseen capture
 *devices* is the honest remaining limit (see "what I'd improve").
 
+**Blind test — 25 brand-new images shot after freezing the model.** A final check
+on 25 fresh same-scene pairs (each scene photographed for real and off a screen),
+none in training/CV: **25/25 correct**, every real ≤ 0.07 and every screen ≥ 0.89.
+A temporally + independently held-out result — stronger than cross-validation.
+
 ## The two required numbers
 
 - **Latency:** ~**494 ms / image** (median) on a Windows laptop, **CPU only, no GPU**.

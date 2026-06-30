@@ -14,3 +14,4 @@ plan.md
 
 # NOTE: model.joblib IS committed -- predict.py needs it and the grader
 # cannot retrain (the dataset is not shipped).
+dataset/validation/

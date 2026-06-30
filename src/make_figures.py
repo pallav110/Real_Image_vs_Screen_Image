@@ -159,23 +159,30 @@ def fig_spectrum(real_path, screen_path):
     fig.tight_layout(); fig.savefig(FIGS / "fig5_spectrum_moire.png"); plt.close(fig)
 
 
-def fig_examples(paths, y):
-    # pick a few of each class
-    reals = [p for p, l in zip(paths, y) if l == 0 and "IMG_2026" in p.name][:3]
-    screens = [p for p, l in zip(paths, y) if l == 1 and "IMG_2026" in p.name][:3]
-    picks = reals + screens
-    fig, axes = plt.subplots(2, 3, figsize=(11, 7.4))
-    for ax, p in zip(axes.ravel(), picks):
-        from PIL import Image
-        im = Image.open(p).convert("RGB"); im.thumbnail((360, 360))
-        s = P.predict(str(p))
-        verdict = "SCREEN" if s >= 0.5 else "REAL"
-        col = SCREEN if s >= 0.5 else REAL
-        ax.imshow(im); ax.axis("off")
-        ax.set_title(f"score={s:.2f} -> {verdict}", color=col, fontsize=11)
-    fig.suptitle("Figure 6 — Example predictions (score = P(photo-of-a-screen))",
-                 fontsize=12)
-    fig.tight_layout(); fig.savefig(FIGS / "fig6_examples.png"); plt.close(fig)
+def fig_paired_validation(pairs=("01", "03", "06", "11")):
+    """Same scene shot two ways: a real photo vs a photo of that scene on a screen.
+
+    Uses the brand-new validation set (dataset/validation/, shot AFTER the model
+    was frozen) so it doubles as a blind generalization check. test_NN <-> fake_NN
+    are the same scene."""
+    from PIL import Image
+    V = ROOT / "dataset" / "validation"
+    n = len(pairs)
+    fig, axes = plt.subplots(2, n, figsize=(3.1 * n, 6.6))
+    for j, pid in enumerate(pairs):
+        rp = next((V / "real").glob(f"test_{pid}.*"))
+        sp = next((V / "screen").glob(f"fake_{pid}.*"))
+        for row, (p, kind) in enumerate([(rp, "REAL photo"), (sp, "PHOTO OF A SCREEN")]):
+            im = Image.open(p).convert("RGB"); im.thumbnail((420, 420))
+            s = P.predict(str(p))
+            ax = axes[row, j]; ax.imshow(im); ax.axis("off")
+            col = SCREEN if s >= 0.5 else REAL
+            ax.set_title(f"{kind}\nscore={s:.2f}", color=col, fontsize=10)
+    fig.suptitle("Figure 6 — Same scene, real vs photographed off a screen "
+                 "(brand-new images, never trained on)\n"
+                 "top row = real (score -> 0)   ·   bottom row = recapture (score -> 1)",
+                 fontsize=11)
+    fig.tight_layout(); fig.savefig(FIGS / "fig6_paired_validation.png"); plt.close(fig)
 
 
 def main():
@@ -194,8 +201,17 @@ def main():
     # representative crisp screenshot + real for the physics figure
     screen = next(p for p in paths_k if "IMG_2026" in p.name and p.parent.name == "screen")
     real = next(p for p in paths_k if "IMG_2026" in p.name and p.parent.name == "real")
-    fig_spectrum(real, screen)
-    fig_examples(paths_k, yk)
+    # Prefer a SAME-SCENE pair for the physics figure so real-vs-recapture is the
+    # only variable (the clock pair: smooth wall vs strong visible moiré).
+    V = ROOT / "dataset" / "validation"
+    pair_real = next((V / "real").glob("test_01.*"), None) if (V / "real").is_dir() else None
+    pair_screen = next((V / "screen").glob("fake_01.*"), None) if (V / "screen").is_dir() else None
+    fig_spectrum(pair_real or real, pair_screen or screen)
+
+    if (V / "real").is_dir():
+        fig_paired_validation()
+    else:
+        print("  (skipping fig6: dataset/validation/ not present)")
     print(f"done -> {FIGS}")
     for f in sorted(FIGS.glob("*.png")):
         print("  ", f.name)

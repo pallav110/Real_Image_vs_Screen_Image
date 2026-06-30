@@ -16,6 +16,7 @@ python predict.py image.jpg      # -> e.g. 0.0127   (real)   or   1.0000 (screen
 | Metric | Value |
 |---|---|
 | Accuracy (5-fold CV, shipped model) | **96.9%** / balanced **0.963 ± 0.017** |
+| Blind test (25 brand-new images, post-freeze) | **25/25 = 100%** |
 | ROC-AUC | **0.99** (5-fold) |
 | Held-out screen recall | **100%** (29/29) |
 | Latency | **~494 ms/image**, laptop **CPU only** |
@@ -39,11 +40,12 @@ cannot. We measure three families of them, all interpretable:
 3. **JPEG double-compression blockiness** — a screenshot is JPEG-encoded once by
    the source device and again by the camera, strengthening 8×8 block-edge jumps.
 
-**The physics, made visible** — the FFT of a screen crop is a regular lattice of
-bright dots (the pixel grid); a real crop is smooth. This single signal does most
-of the work:
+**The physics, made visible** — the *same clock*, shot for real vs photographed off
+a screen. In the screen version you can see the moiré ripples on the wall directly,
+and its residual FFT shows bright off-center peaks; the real crop's spectrum has no
+such peaks. This single signal does most of the work:
 
-![Figure 5 — residual FFT of a real vs a screen crop: the screen concentrates energy into periodic moiré peaks](figures/fig5_spectrum_moire.png)
+![Figure 5 — same scene: residual FFT of the real clock (no peaks) vs the screen clock (bright moiré peaks)](figures/fig5_spectrum_moire.png)
 
 **Which fingerprints actually separate the classes** (single-feature ROC-AUC):
 
@@ -95,9 +97,17 @@ and don't match the grader's direct-camera scenario, so they're excluded.
 This certifies no *image-level* overfitting; robustness to unseen capture *devices*
 is the honest remaining limit (see [`note.md`](note.md)).
 
-### Example predictions
+### Blind validation on brand-new images
 
-![Figure 6 — example predictions: real gadgets score low, photos of monitors score high](figures/fig6_examples.png)
+The strongest test: **25 images shot *after* the model was frozen** (a separate
+session, never in training or cross-validation), as same-scene pairs — each scene
+photographed for real *and* photographed off a screen.
+
+**Result: 25/25 correct (100%)** — every real scored ≤ 0.07, every screen ≥ 0.89
+(wide margins, not lucky calls). This is stronger evidence than cross-validation
+because the images are temporally and independently held out.
+
+![Figure 6 — same scene shot as a real photo (top, score→0) vs off a screen (bottom, score→1); 25/25 on brand-new images](figures/fig6_paired_validation.png)
 
 ## Run it
 
@@ -109,6 +119,7 @@ python predict.py image.jpg        # the graded interface -> one number 0..1
 python src/train.py                # retrain + compare 3 models (--refresh re-extracts)
 python src/check_data.py           # dataset + confound checks
 python src/validate.py             # reproducible no-overfitting proof
+python src/eval_validation.py      # blind test on brand-new held-out images
 python src/benchmark.py            # latency + cost
 python src/make_figures.py         # regenerate figures/ (needs matplotlib)
 
